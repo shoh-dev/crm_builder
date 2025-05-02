@@ -28,7 +28,13 @@ class CanvasWidget extends StatelessWidget {
                 Positioned(
                   left: w.offset.dx,
                   top: w.offset.dy,
-                  child: _buildPreview(w.item),
+                  child: GestureDetector(
+                    onTap: () => vm.select(w.id),
+                    child: _SelectableFrame(
+                      selected: vm.selectedId == w.id,
+                      child: _buildPreview(w),
+                    ),
+                  ),
                 ),
             ],
           ),
@@ -37,12 +43,29 @@ class CanvasWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildPreview(PaletteItem item) {
-    switch (item.type) {
+  Widget _buildPreview(PlacedWidget w) {
+    switch (w.item.type) {
       case PaletteType.table:
         return const TablePreviewWidget();
     }
   }
+}
+
+class _SelectableFrame extends StatelessWidget {
+  const _SelectableFrame({required this.selected, required this.child});
+  final bool selected;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    decoration:
+        selected
+            ? BoxDecoration(
+              border: Border.all(color: Colors.blueAccent, width: 2),
+            )
+            : null,
+    child: child,
+  );
 }
 
 class _GridPainter extends CustomPainter {

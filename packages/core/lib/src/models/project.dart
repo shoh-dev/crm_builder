@@ -6,6 +6,7 @@ class Project extends Equatable {
     required this.workspaceId,
     required this.name,
     this.description,
+    this.layout = const {},
     required this.createdAt,
   });
 
@@ -13,6 +14,7 @@ class Project extends Equatable {
   final String workspaceId;
   final String name;
   final String? description;
+  final Map<String, dynamic> layout;
   final DateTime createdAt;
 
   factory Project.fromJson(Map<String, dynamic> j) => Project(
@@ -21,6 +23,7 @@ class Project extends Equatable {
     name: j['name'] as String,
     description: j['description'] as String?,
     createdAt: DateTime.parse(j['created_at'] as String),
+    layout: (j['layout'] ?? const {}) as Map<String, dynamic>,
   );
 
   Map<String, dynamic> toJson() => {
@@ -29,6 +32,7 @@ class Project extends Equatable {
     'name': name,
     'description': description,
     'created_at': createdAt.toIso8601String(),
+    'layout': layout,
   };
 
   @override
