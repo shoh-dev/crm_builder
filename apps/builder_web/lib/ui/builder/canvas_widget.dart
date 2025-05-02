@@ -95,7 +95,10 @@ class _RawInteractiveState extends State<_RawInteractive> {
               child: SizedBox(
                 width: w.size.width,
                 height: w.size.height,
-                child: TablePreviewWidget(props: w.tableProps!),
+                child:
+                    w.item.type == PaletteType.table
+                        ? TablePreviewWidget(props: w.tableProps!)
+                        : FormPreviewWidget(props: w.formProps!),
               ),
             ),
 

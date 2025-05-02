@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:core/src/services/supabase_service.dart';
 import 'package:widgets_palette/widgets_palette.dart';
 
-class DataBindingDialog extends StatefulWidget {
+class DataBindingDialog<T> extends StatefulWidget {
   const DataBindingDialog({required this.initial, super.key});
-  final TableProps initial;
+  final T initial;
 
   @override
-  State<DataBindingDialog> createState() => _DataBindingDialogState();
+  State<DataBindingDialog<T>> createState() => _DataBindingDialogState<T>();
 }
 
-class _DataBindingDialogState extends State<DataBindingDialog> {
+class _DataBindingDialogState<T> extends State<DataBindingDialog<T>> {
   String? _table;
   final _selectedCols = <String>{};
   bool _loading = true;
@@ -25,10 +25,7 @@ class _DataBindingDialogState extends State<DataBindingDialog> {
 
   Future<void> _fetchTables() async {
     final resp =
-        await SupabaseService.I.client
-            .rpc('list_tables') // <- NEW
-            .limit(200)
-            .select(); // <- receive as List<Map>
+        await SupabaseService.I.client.rpc('list_tables').limit(200).select();
     _tables =
         (resp as List).map<String>((m) => m['table_name'] as String).toList();
     setState(() => _loading = false);
@@ -41,7 +38,7 @@ class _DataBindingDialogState extends State<DataBindingDialog> {
     });
     final resp =
         await SupabaseService.I.client
-            .rpc('list_columns', params: {'p_table': table}) // <- NEW
+            .rpc('list_columns', params: {'p_table': table})
             .limit(200)
             .select();
     _cols =
@@ -101,11 +98,21 @@ class _DataBindingDialogState extends State<DataBindingDialog> {
         if (_table != null)
           TextButton(
             onPressed: () {
-              final newProps =
-                  widget.initial.copy()
-                    ..boundTable = _table
-                    ..columns = _selectedCols.toList();
-              Navigator.pop(context, newProps);
+              if (T == TableProps) {
+                final newProps =
+                    (widget.initial as TableProps).copy()
+                      ..boundTable = _table
+                      ..columns = _selectedCols.toList();
+                Navigator.pop(context, newProps as T);
+              } else if (T == FormProps) {
+                final newProps =
+                    (widget.initial as FormProps).copy()
+                      ..boundTable = _table
+                      ..fields = _selectedCols.toList();
+                Navigator.pop(context, newProps as T);
+              } else {
+                throw UnimplementedError('Unsupported type: $T');
+              }
             },
             child: const Text('Bind'),
           ),

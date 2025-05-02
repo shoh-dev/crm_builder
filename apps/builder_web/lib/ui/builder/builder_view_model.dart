@@ -15,17 +15,20 @@ class PlacedWidget {
     required this.item,
     required this.offset,
     this.size = const Size(220, 140),
-  }) : tableProps = item.type == PaletteType.table ? TableProps() : null;
+  }) : tableProps = item.type == PaletteType.table ? TableProps() : null,
+       formProps = item.type == PaletteType.form ? FormProps() : null;
 
   final String id;
   final PaletteItem item;
   Offset offset;
   Size size;
   TableProps? tableProps;
+  FormProps? formProps;
 
   /// Serialize to JSON for persistence
   Map<String, dynamic> toJson() {
     final p = tableProps;
+    final f = formProps;
     return {
       'id': id,
       'type': item.type.name,
@@ -38,6 +41,8 @@ class PlacedWidget {
           'boundTable': p.boundTable,
           'columns': p.columns,
         },
+      if (f != null)
+        'formProps': {'boundTable': f.boundTable, 'fields': f.fields},
     };
   }
 
@@ -49,7 +54,7 @@ class PlacedWidget {
     final item = PaletteItem(
       type: type,
       name: type.name,
-      icon: Icons.table_chart,
+      icon: type == PaletteType.table ? Icons.table_chart : Icons.list,
     );
     final w = PlacedWidget(
       id: j['id'] as String,
@@ -70,6 +75,13 @@ class PlacedWidget {
         showToolbar: p['showToolbar'] as bool,
         boundTable: p['boundTable'] as String?,
         columns: (p['columns'] as List).map((e) => e as String).toList(),
+      );
+    }
+    if (j['formProps'] != null) {
+      final f = j['formProps'] as Map<String, dynamic>;
+      w.formProps = FormProps(
+        boundTable: f['boundTable'] as String?,
+        fields: (f['fields'] as List).map((e) => e as String).toList(),
       );
     }
     return w;
@@ -141,12 +153,30 @@ class BuilderViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Remove the currently selected widget
+  void removeSelected() {
+    if (_selectedId == null) return;
+    _snapshot();
+    placed.removeWhere((w) => w.id == _selectedId);
+    _selectedId = null;
+    notifyListeners();
+  }
+
   /// Update TableProps after property edits
   void updateTableProps(TableProps newProps) {
     final w = selected;
     if (w == null) return;
     _snapshot();
     w.tableProps = newProps;
+    notifyListeners();
+  }
+
+  /// Update FormProps after property edits
+  void updateFormProps(FormProps newProps) {
+    final w = selected;
+    if (w == null) return;
+    _snapshot();
+    w.formProps = newProps;
     notifyListeners();
   }
 

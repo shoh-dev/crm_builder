@@ -19,13 +19,11 @@ class WorkspaceService {
       if (rows.isNotEmpty) return right(rows.first);
 
       final row =
-          await SupabaseService.I.client
-              .from('workspaces')
-              .insert({'name': 'Demo Workspace'})
-              .select()
-              .single();
+          await SupabaseService.I.client.from('workspaces').insert([
+            for (int i = 0; i < 100; i++) {'name': 'Demo Workspace $i'},
+          ]).select();
 
-      return right(row);
+      return right(row.first);
     } catch (e) {
       return left(Failure(e.toString()));
     }

@@ -10,6 +10,7 @@ class PaletteDrawer extends StatelessWidget {
       name: 'Table',
       icon: Icons.table_chart,
     ),
+    PaletteItem(type: PaletteType.form, name: 'Form', icon: Icons.list),
   ];
 
   @override

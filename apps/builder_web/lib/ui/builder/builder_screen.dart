@@ -19,6 +19,10 @@ class RedoIntent extends Intent {
   const RedoIntent();
 }
 
+class DeleteIntent extends Intent {
+  const DeleteIntent();
+}
+
 class BuilderScreen extends StatefulWidget {
   const BuilderScreen({super.key});
 
@@ -50,7 +54,7 @@ class _BuilderScreenState extends State<BuilderScreen> {
         });
       },
       (ws) async {
-        _workspaceId = ws['id'] as String;
+        _workspaceId = ws!['id'] as String;
 
         // ── Project ────────────────────────────────────────────────
         final pjRes = await ProjectService.I.getOrCreateDemo(_workspaceId!);
@@ -84,22 +88,37 @@ class _BuilderScreenState extends State<BuilderScreen> {
         appBar: AppBar(
           title: const Text('CRM Builder'),
           actions: [
-            IconButton(
-              icon: const Icon(Icons.save),
-              onPressed: () async {
-                final json = context.read<BuilderViewModel>().serializeLayout();
-                final res = await ProjectService.I.upsertLayout(
-                  projectId: _projectId!,
-                  layout: json,
+            Builder(
+              builder: (context) {
+                return IconButton(
+                  icon: const Icon(Icons.delete),
+                  tooltip: 'Delete selected widget',
+                  onPressed:
+                      () => context.read<BuilderViewModel>().removeSelected(),
                 );
+              },
+            ),
+            Builder(
+              builder: (context) {
+                return IconButton(
+                  icon: const Icon(Icons.save),
+                  onPressed: () async {
+                    final json =
+                        context.read<BuilderViewModel>().serializeLayout();
+                    final res = await ProjectService.I.upsertLayout(
+                      projectId: _projectId!,
+                      layout: json,
+                    );
 
-                res.fold(
-                  (l) => ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text(l.message))),
-                  (_) => ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(const SnackBar(content: Text('Saved'))),
+                    res.fold(
+                      (l) => ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text(l.message))),
+                      (_) => ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(const SnackBar(content: Text('Saved'))),
+                    );
+                  },
                 );
               },
             ),
@@ -125,6 +144,8 @@ class _BuilderScreenState extends State<BuilderScreen> {
                   LogicalKeyboardKey.keyZ,
                 ):
                 const RedoIntent(),
+            // Delete key
+            LogicalKeySet(LogicalKeyboardKey.delete): const DeleteIntent(),
           },
           child: Actions(
             actions: {
@@ -133,6 +154,10 @@ class _BuilderScreenState extends State<BuilderScreen> {
               ),
               RedoIntent: CallbackAction<RedoIntent>(
                 onInvoke: (_) => context.read<BuilderViewModel>().redo(),
+              ),
+              DeleteIntent: CallbackAction<DeleteIntent>(
+                onInvoke:
+                    (_) => context.read<BuilderViewModel>().removeSelected(),
               ),
             },
             child: Row(
