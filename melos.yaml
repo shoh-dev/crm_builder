@@ -1,0 +1,8 @@
+name: crm_builder_workspace
+packages:
+  - packages/**
+  - apps/**
+scripts:
+  web: |
+    melos exec -c 1 -- \
+      flutter run -d chrome --dart-define-from-file=../../spec.json

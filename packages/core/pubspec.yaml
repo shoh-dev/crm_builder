@@ -1,0 +1,16 @@
+name: core
+description: Shared models, services, and constants
+publish_to: "none"
+version: 0.0.2      # bump
+
+environment:
+  sdk: ">=3.7.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  equatable: ^2.0.5
+  supabase_flutter: ^2.8.4   # latest 2.x line :contentReference[oaicite:0]{index=0}
+
+dev_dependencies:
+  flutter_lints: ^3.0.1

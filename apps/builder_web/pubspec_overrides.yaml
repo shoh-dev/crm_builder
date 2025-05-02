@@ -1,0 +1,6 @@
+# melos_managed_dependency_overrides: core,widgets_palette
+dependency_overrides:
+  core:
+    path: ../../packages/core
+  widgets_palette:
+    path: ../../packages/widgets_palette
