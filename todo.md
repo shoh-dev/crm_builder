@@ -1,0 +1,1 @@
+- when locked and unselected, cannot select anymore
