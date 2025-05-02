@@ -9,17 +9,18 @@ class CanvasWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<BuilderViewModel>();
+    debugPrint('Canvas rebuild: ${vm.placed.length} widgets');
 
     return DragTarget<PaletteItem>(
-      onAcceptWithDetails: (d) {
-        final local =
-            (context.findRenderObject() as RenderBox?)?.globalToLocal(
-              d.offset,
-            ) ??
-            Offset.zero;
-        vm.addWidget(d.data, local);
+      onAcceptWithDetails: (details) {
+        final renderBox = context.findRenderObject() as RenderBox?;
+        final local = renderBox?.globalToLocal(details.offset) ?? Offset.zero;
+        vm.addWidget(details.data, local);
       },
       builder: (_, __, ___) {
+        if (vm.placed.isEmpty) {
+          return const Center(child: Text('No widgets on canvas'));
+        }
         return CustomPaint(
           painter: _GridPainter(),
           child: Stack(
@@ -32,7 +33,11 @@ class CanvasWidget extends StatelessWidget {
                     onTap: () => vm.select(w.id),
                     child: _SelectableFrame(
                       selected: vm.selectedId == w.id,
-                      child: _buildPreview(w),
+                      child: SizedBox(
+                        width: w.size.width,
+                        height: w.size.height,
+                        child: TablePreviewWidget(props: w.tableProps!),
+                      ),
                     ),
                   ),
                 ),
@@ -42,13 +47,6 @@ class CanvasWidget extends StatelessWidget {
       },
     );
   }
-
-  Widget _buildPreview(PlacedWidget w) {
-    switch (w.item.type) {
-      case PaletteType.table:
-        return const TablePreviewWidget();
-    }
-  }
 }
 
 class _SelectableFrame extends StatelessWidget {
@@ -57,15 +55,17 @@ class _SelectableFrame extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => Container(
-    decoration:
-        selected
-            ? BoxDecoration(
-              border: Border.all(color: Colors.blueAccent, width: 2),
-            )
-            : null,
-    child: child,
-  );
+  Widget build(BuildContext context) {
+    return Container(
+      decoration:
+          selected
+              ? BoxDecoration(
+                border: Border.all(color: Colors.blueAccent, width: 2),
+              )
+              : null,
+      child: child,
+    );
+  }
 }
 
 class _GridPainter extends CustomPainter {

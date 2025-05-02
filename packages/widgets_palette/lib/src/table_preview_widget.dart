@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:widgets_palette/widgets_palette.dart';
 
 /// Very bare‑bones visual for the builder canvas only.
 class TablePreviewWidget extends StatelessWidget {
-  const TablePreviewWidget({super.key});
+  const TablePreviewWidget({super.key, required this.props});
+  final TableProps props;
 
   @override
   Widget build(BuildContext context) {

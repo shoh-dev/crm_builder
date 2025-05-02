@@ -8,18 +8,22 @@ import 'package:core/src/services/supabase_service.dart';
 ///  A single widget placed on the canvas
 /// ---------------------------------------------------------------------------
 class PlacedWidget {
-  PlacedWidget({required this.id, required this.item, required this.offset})
-    : tableProps =
-          item.type == PaletteType.table ? TableProps() : null; // default
+  PlacedWidget({
+    required this.id,
+    required this.item,
+    required this.offset,
+    this.size = const Size(220, 140),
+  }) : tableProps = item.type == PaletteType.table ? TableProps() : null;
 
   final String id;
   final PaletteItem item;
   Offset offset;
+  Size size;
 
   // widget‑specific data (null for non‑table widgets)
   TableProps? tableProps;
 
-  // ---------- JSON <‑‑> Object helpers --------------------------------------
+  // ---------- JSON <‑‑> Object helpers --------------------------------------
 
   Map<String, dynamic> toJson() {
     final p = tableProps; // promote once so it's non‑null inside the map
@@ -27,6 +31,7 @@ class PlacedWidget {
       'id': id,
       'type': item.type.name,
       'offset': {'dx': offset.dx, 'dy': offset.dy},
+      'size': {'w': size.width, 'h': size.height},
       if (p != null)
         'tableProps': {
           'rowsPerPage': p.rowsPerPage,
@@ -56,6 +61,10 @@ class PlacedWidget {
         (j['offset']['dx'] as num).toDouble(),
         (j['offset']['dy'] as num).toDouble(),
       ),
+      size: Size(
+        (j['size']?['w'] ?? 220) as double,
+        (j['size']?['h'] ?? 140) as double,
+      ),
     );
 
     if (j['tableProps'] != null) {
@@ -79,6 +88,32 @@ final _uuid = const Uuid();
 
 class BuilderViewModel extends ChangeNotifier {
   final placed = <PlacedWidget>[];
+  final _undo = <List<PlacedWidget>>[];
+  final _redo = <List<PlacedWidget>>[];
+
+  void _snapshot() => _undo.add(
+    List<PlacedWidget>.from(
+      placed.map((e) => PlacedWidget.fromJson(e.toJson())),
+    ),
+  );
+
+  void undo() {
+    if (_undo.isEmpty) return;
+    _redo.add(List.of(placed));
+    placed
+      ..clear()
+      ..addAll(_undo.removeLast());
+    notifyListeners();
+  }
+
+  void redo() {
+    if (_redo.isEmpty) return;
+    _undo.add(List.of(placed));
+    placed
+      ..clear()
+      ..addAll(_redo.removeLast());
+    notifyListeners();
+  }
 
   // selection ---------------------------------------------------------------
   String? _selectedId;
@@ -89,7 +124,20 @@ class BuilderViewModel extends ChangeNotifier {
 
   // canvas actions ----------------------------------------------------------
   void addWidget(PaletteItem item, Offset offset) {
+    _snapshot();
     placed.add(PlacedWidget(id: _uuid.v4(), item: item, offset: offset));
+    notifyListeners();
+  }
+
+  void move(String id, Offset newPos) {
+    _snapshot();
+    placed.firstWhere((w) => w.id == id).offset = newPos;
+    notifyListeners();
+  }
+
+  void resize(String id, Size newSize) {
+    _snapshot();
+    placed.firstWhere((w) => w.id == id).size = newSize;
     notifyListeners();
   }
 

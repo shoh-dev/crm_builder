@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:fpdart/src/either.dart';
 
@@ -9,6 +10,14 @@ import 'properties_panel.dart';
 import 'package:core/src/services/workspace_service.dart';
 import 'package:core/src/services/project_service.dart';
 import 'package:core/src/failure.dart';
+
+class UndoIntent extends Intent {
+  const UndoIntent();
+}
+
+class RedoIntent extends Intent {
+  const RedoIntent();
+}
 
 class BuilderScreen extends StatefulWidget {
   const BuilderScreen({super.key});
@@ -96,14 +105,46 @@ class _BuilderScreenState extends State<BuilderScreen> {
             ),
           ],
         ),
-        body: Row(
-          children: const [
-            SizedBox(width: 260, child: PaletteDrawer()),
-            VerticalDivider(width: 1),
-            Expanded(child: CanvasWidget()),
-            VerticalDivider(width: 1),
-            SizedBox(width: 260, child: PropertiesPanel()),
-          ],
+        body: Shortcuts(
+          shortcuts: {
+            // ⌘ Z / Ctrl Z
+            LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.keyZ):
+                const UndoIntent(),
+            LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyZ):
+                const UndoIntent(),
+            // ⇧ ⌘ Z / Ctrl Shift Z
+            LogicalKeySet(
+                  LogicalKeyboardKey.meta,
+                  LogicalKeyboardKey.shift,
+                  LogicalKeyboardKey.keyZ,
+                ):
+                const RedoIntent(),
+            LogicalKeySet(
+                  LogicalKeyboardKey.control,
+                  LogicalKeyboardKey.shift,
+                  LogicalKeyboardKey.keyZ,
+                ):
+                const RedoIntent(),
+          },
+          child: Actions(
+            actions: {
+              UndoIntent: CallbackAction<UndoIntent>(
+                onInvoke: (_) => context.read<BuilderViewModel>().undo(),
+              ),
+              RedoIntent: CallbackAction<RedoIntent>(
+                onInvoke: (_) => context.read<BuilderViewModel>().redo(),
+              ),
+            },
+            child: Row(
+              children: const [
+                SizedBox(width: 260, child: PaletteDrawer()),
+                VerticalDivider(width: 1),
+                Expanded(child: CanvasWidget()),
+                VerticalDivider(width: 1),
+                SizedBox(width: 260, child: PropertiesPanel()),
+              ],
+            ),
+          ),
         ),
       ),
     );
