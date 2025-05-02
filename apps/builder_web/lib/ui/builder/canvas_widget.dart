@@ -77,13 +77,14 @@ class _RawInteractiveState extends State<_RawInteractive> {
             // entire area listens to pointer events for move
             Listener(
               onPointerDown: (e) {
-                if (widget.selected) return; // let resize handle those
+                if (widget.selected || w.locked)
+                  return; // let resize handle those
                 _pointerStart = e.position;
                 _widgetStart = w.offset;
                 vm.select(w.id);
               },
               onPointerMove: (e) {
-                if (!widget.selected) return;
+                if (!widget.selected || w.locked) return;
                 final delta = e.position - _pointerStart;
                 final raw = _widgetStart + delta;
                 final snapped = Offset(
@@ -103,32 +104,59 @@ class _RawInteractiveState extends State<_RawInteractive> {
             ),
 
             // resize handle (now larger)
+            if (widget.selected && !w.locked)
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.move,
+                  child: GestureDetector(
+                    onPanStart: (e) {
+                      _pointerStart = e.globalPosition;
+                      _widgetStart = w.offset;
+                      _sizeStart = w.size;
+                    },
+                    onPanUpdate: (e) {
+                      final delta = e.globalPosition - _pointerStart;
+                      final raw = Size(
+                        _sizeStart.width + delta.dx,
+                        _sizeStart.height + delta.dy,
+                      );
+                      final snapped = Size(
+                        (raw.width / _grid).round() * _grid,
+                        (raw.height / _grid).round() * _grid,
+                      );
+                      if (snapped.width >= _minSize.width &&
+                          snapped.height >= _minSize.height) {
+                        vm.resize(w.id, snapped);
+                      }
+                    },
+                    child: Container(
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: Colors.blueAccent,
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(4),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+            // lock/unlock button
             if (widget.selected)
               Positioned(
-                right: -10,
-                bottom: -10,
-                child: Listener(
-                  onPointerDown: (e) {
-                    _pointerStart = e.position;
-                    _sizeStart = w.size;
-                  },
-                  onPointerMove: (e) {
-                    final delta = e.position - _pointerStart;
-                    double newW = _sizeStart.width + delta.dx;
-                    double newH = _sizeStart.height + delta.dy;
-                    newW = newW.clamp(_minSize.width, double.infinity);
-                    newH = newH.clamp(_minSize.height, double.infinity);
-                    final snapped = Size(
-                      (newW / _grid).round() * _grid,
-                      (newH / _grid).round() * _grid,
-                    );
-                    vm.resize(w.id, snapped);
-                  },
-                  child: Container(
-                    width: 20,
-                    height: 20,
-                    color: Colors.blueAccent,
+                top: 8,
+                right: 8,
+                child: IconButton(
+                  icon: Icon(
+                    w.locked ? Icons.lock : Icons.lock_open,
+                    color: w.locked ? Colors.orange : Colors.grey,
                   ),
+                  onPressed: () => vm.toggleLock(w.id),
+                  tooltip: w.locked ? 'Unlock widget' : 'Lock widget',
                 ),
               ),
           ],

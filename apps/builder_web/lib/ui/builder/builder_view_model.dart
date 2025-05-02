@@ -15,6 +15,7 @@ class PlacedWidget {
     required this.item,
     required this.offset,
     this.size = const Size(220, 140),
+    this.locked = false,
   }) : tableProps = item.type == PaletteType.table ? TableProps() : null,
        formProps = item.type == PaletteType.form ? FormProps() : null;
 
@@ -22,6 +23,7 @@ class PlacedWidget {
   final PaletteItem item;
   Offset offset;
   Size size;
+  bool locked;
   TableProps? tableProps;
   FormProps? formProps;
 
@@ -34,6 +36,7 @@ class PlacedWidget {
       'type': item.type.name,
       'offset': {'dx': offset.dx, 'dy': offset.dy},
       'size': {'w': size.width, 'h': size.height},
+      'locked': locked,
       if (p != null)
         'tableProps': {
           'rowsPerPage': p.rowsPerPage,
@@ -67,6 +70,7 @@ class PlacedWidget {
         (j['size']?['w'] as num? ?? 220).toDouble(),
         (j['size']?['h'] as num? ?? 140).toDouble(),
       ),
+      locked: j['locked'] as bool? ?? false,
     );
     if (j['tableProps'] != null) {
       final p = j['tableProps'] as Map<String, dynamic>;
@@ -177,6 +181,13 @@ class BuilderViewModel extends ChangeNotifier {
     if (w == null) return;
     _snapshot();
     w.formProps = newProps;
+    notifyListeners();
+  }
+
+  void toggleLock(String id) {
+    _snapshot();
+    final w = placed.firstWhere((w) => w.id == id);
+    w.locked = !w.locked;
     notifyListeners();
   }
 

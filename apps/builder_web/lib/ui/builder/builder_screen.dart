@@ -54,7 +54,7 @@ class _BuilderScreenState extends State<BuilderScreen> {
         });
       },
       (ws) async {
-        _workspaceId = ws!['id'] as String;
+        _workspaceId = ws['id'] as String;
 
         // ── Project ────────────────────────────────────────────────
         final pjRes = await ProjectService.I.getOrCreateDemo(_workspaceId!);
