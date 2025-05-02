@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:collection/collection.dart';
 import 'package:uuid/uuid.dart';
 import 'package:widgets_palette/widgets_palette.dart';
-import 'package:core/src/services/supabase_service.dart';
+import 'package:core/src/services/workspace_service.dart';
+import 'package:core/src/services/project_service.dart';
+import 'package:core/src/failure.dart';
 
-/// ---------------------------------------------------------------------------
-///  A single widget placed on the canvas
-/// ---------------------------------------------------------------------------
+final _uuid = const Uuid();
+
+/// Represents a widget placed on the canvas, including its properties
 class PlacedWidget {
   PlacedWidget({
     required this.id,
@@ -19,14 +21,11 @@ class PlacedWidget {
   final PaletteItem item;
   Offset offset;
   Size size;
-
-  // widget‑specific data (null for non‑table widgets)
   TableProps? tableProps;
 
-  // ---------- JSON <‑‑> Object helpers --------------------------------------
-
+  /// Serialize to JSON for persistence
   Map<String, dynamic> toJson() {
-    final p = tableProps; // promote once so it's non‑null inside the map
+    final p = tableProps;
     return {
       'id': id,
       'type': item.type.name,
@@ -42,18 +41,16 @@ class PlacedWidget {
     };
   }
 
+  /// Reconstruct from JSON
   static PlacedWidget fromJson(Map<String, dynamic> j) {
     final type = PaletteType.values.firstWhere(
       (e) => e.name == (j['type'] as String),
     );
-
-    // icon is just a placeholder when recreating from JSON in the builder
     final item = PaletteItem(
       type: type,
       name: type.name,
-      icon: Icons.device_hub,
+      icon: Icons.table_chart,
     );
-
     final w = PlacedWidget(
       id: j['id'] as String,
       item: item,
@@ -62,95 +59,111 @@ class PlacedWidget {
         (j['offset']['dy'] as num).toDouble(),
       ),
       size: Size(
-        (j['size']?['w'] ?? 220) as double,
-        (j['size']?['h'] ?? 140) as double,
+        (j['size']?['w'] as num? ?? 220).toDouble(),
+        (j['size']?['h'] as num? ?? 140).toDouble(),
       ),
     );
-
     if (j['tableProps'] != null) {
       final p = j['tableProps'] as Map<String, dynamic>;
       w.tableProps = TableProps(
         rowsPerPage: p['rowsPerPage'] as int,
         showToolbar: p['showToolbar'] as bool,
         boundTable: p['boundTable'] as String?,
-        columns:
-            (p['columns'] as List<dynamic>).map((e) => e as String).toList(),
+        columns: (p['columns'] as List).map((e) => e as String).toList(),
       );
     }
     return w;
   }
 }
 
-/// ---------------------------------------------------------------------------
-///  View‑model for the builder screen
-/// ---------------------------------------------------------------------------
-final _uuid = const Uuid();
-
+/// ViewModel managing canvas state and persistence
 class BuilderViewModel extends ChangeNotifier {
   final placed = <PlacedWidget>[];
+
+  // Selection
+  String? _selectedId;
+  String? get selectedId => _selectedId;
+  PlacedWidget? get selected =>
+      placed.firstWhereOrNull((w) => w.id == _selectedId);
+
+  // Undo/Redo stacks
   final _undo = <List<PlacedWidget>>[];
   final _redo = <List<PlacedWidget>>[];
 
-  void _snapshot() => _undo.add(
-    List<PlacedWidget>.from(
-      placed.map((e) => PlacedWidget.fromJson(e.toJson())),
-    ),
-  );
+  void _snapshot() {
+    _undo.add(placed.map((w) => PlacedWidget.fromJson(w.toJson())).toList());
+    _redo.clear();
+  }
 
   void undo() {
     if (_undo.isEmpty) return;
-    _redo.add(List.of(placed));
+    _redo.add(placed.toList());
+    final prev = _undo.removeLast();
     placed
       ..clear()
-      ..addAll(_undo.removeLast());
+      ..addAll(prev);
     notifyListeners();
   }
 
   void redo() {
     if (_redo.isEmpty) return;
-    _undo.add(List.of(placed));
+    _undo.add(placed.toList());
+    final next = _redo.removeLast();
     placed
       ..clear()
-      ..addAll(_redo.removeLast());
+      ..addAll(next);
     notifyListeners();
   }
 
-  // selection ---------------------------------------------------------------
-  String? _selectedId;
-  String? get selectedId => _selectedId;
-
-  PlacedWidget? get selected =>
-      placed.firstWhereOrNull((w) => w.id == _selectedId);
-
-  // canvas actions ----------------------------------------------------------
+  // Canvas actions
   void addWidget(PaletteItem item, Offset offset) {
     _snapshot();
     placed.add(PlacedWidget(id: _uuid.v4(), item: item, offset: offset));
     notifyListeners();
   }
 
+  void select(String? id) {
+    _selectedId = id;
+    notifyListeners();
+  }
+
   void move(String id, Offset newPos) {
     _snapshot();
-    placed.firstWhere((w) => w.id == id).offset = newPos;
+    final w = placed.firstWhere((w) => w.id == id);
+    w.offset = newPos;
     notifyListeners();
   }
 
   void resize(String id, Size newSize) {
     _snapshot();
-    placed.firstWhere((w) => w.id == id).size = newSize;
+    final w = placed.firstWhere((w) => w.id == id);
+    w.size = newSize;
     notifyListeners();
   }
 
-  void select(String id) {
-    _selectedId = id;
-    notifyListeners();
-  }
-
+  /// Update TableProps after property edits
   void updateTableProps(TableProps newProps) {
     final w = selected;
     if (w == null) return;
+    _snapshot();
     w.tableProps = newProps;
     notifyListeners();
+  }
+
+  // Persistence using services
+  Future<void> saveCurrentLayout() async {
+    final layout = serializeLayout();
+    final wsRes = await WorkspaceService.I.getOrCreateDemo();
+    wsRes.match((l) => throw Exception(l.message), (ws) async {
+      final wsId = ws['id'] as String;
+      final pjRes = await ProjectService.I.getOrCreateDemo(wsId);
+      pjRes.match((l) => throw Exception(l.message), (proj) async {
+        await ProjectService.I.upsertLayout(
+          projectId: proj['id'] as String,
+          layout: layout,
+        );
+      });
+    });
   }
 
   void load(Map<String, dynamic>? layoutJson) {
@@ -164,7 +177,7 @@ class BuilderViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// returns the whole canvas JSON without writing to DB
+  /// Return raw layout JSON for export or save
   Map<String, dynamic> serializeLayout() => {
     'widgets': placed.map((w) => w.toJson()).toList(),
   };
